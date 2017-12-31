@@ -11,33 +11,59 @@ from __future__ import absolute_import
 
 import octoprint.plugin
 from octoprint.util import RepeatedTimer
-from .read_temp import readTemp
-from .read_temp import fanOn
-from .read_temp import fanOff
+from .case_control import CaseController
 
 class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
                            octoprint.plugin.SettingsPlugin,
                            octoprint.plugin.AssetPlugin,
                            octoprint.plugin.EventHandlerPlugin,
-                           octoprint.plugin.TemplatePlugin):
+                           octoprint.plugin.TemplatePlugin,
+                           octoprint.plugin.SimpleApiPlugin):
+
+    def __init__(self):
+        self.c = CaseController()
+        self.valvePosition = 0
+        self.caseTemp = self.c.readTemp_C()
+        self.valveGain = 50
 
     ##~~ The Main Control Loop
     def mainLoop(self):
-        caseTemp = readTemp()
-        self._logger.info(caseTemp['tempC'])
+        self.caseTemp = self.c.readTemp_C()
+        i_error = self.caseTemp - self._settings.get(["desiredTemp"])
+        if(i_error > 0):
+            self.valvePosition = i_error * self.valveGain
+            self.valvePosition = self.sanitize_flowvals(self.valvePosition)
+
+        self.c.setValve(self.valvePosition)
+
+        # self._logger.info(self.caseTemp)
+        self._plugin_manager.send_plugin_message(self._identifier,
+                                                 dict(
+                                                      caseTemp=self.caseTemp,
+                                                      valvePosition=self.valvePosition))
+
+    def sanitize_flowvals(self, invar):
+       if(invar < 0):
+           invar = 0
+       elif(invar > 100):
+           invar = 100
+       # invar = int(invar)
+       return invar
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
         if(event == "PrintStarted"):
-            fanOn()
+            self.c.setFan(1)
         elif(event == "Shutdown"):
-            fanOff()
+            self.c.setFan(0)
 
     ##~~ StartupPlugin mixin
     def on_after_startup(self):
         self._logger.info("Starting Case Controller...")
+        self.c.setStatusLED(1)
+        self.c.setFan(1)
 
-        self.loopTimer = RepeatedTimer(1.0, self.mainLoop)
+        self.loopTimer = RepeatedTimer(0.25, self.mainLoop)
         self.loopTimer.start()
         return 0
 
@@ -45,8 +71,27 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
 
     def get_settings_defaults(self):
         return dict(
-            # put your plugin's default settings here
+            desiredTemp=40
         )
+
+    def get_api_commands(self):
+        return dict(
+            caseLightOn=[],
+            caseLightOff=[],
+            ventFanOn=[],
+            ventFanOff=[]
+        )
+
+    def on_api_command(self, command, data):
+        import flask
+        if command == "caseLightOn":
+            self.c.setCaseLight(1)
+        elif command == "caseLightOff":
+            self.c.setCaseLight(0)
+        elif command == "ventFanOn":
+            self.c.setFan(1)
+        elif command == "ventFanOff":
+            self.c.setFan(0)
 
     ##~~ AssetPlugin mixin
 
@@ -85,7 +130,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
 # If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
 # ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
 # can be overwritten via __plugin_xyz__ control properties. See the documentation for that.
-__plugin_name__ = "Casecontroller Plugin"
+__plugin_name__ = "CaseController"
 
 def __plugin_load__():
     plugin = CasecontrollerPlugin()
