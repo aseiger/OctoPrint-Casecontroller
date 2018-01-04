@@ -17,6 +17,15 @@ $(function() {
         // TODO: Implement your plugin's view model here.
 
         self.caseTemp = ko.observable();
+        self.caseTempStr = ko.observable();
+        self.desiredCaseTemp = ko.observable();
+        self.desiredCaseTempEdit = ko.observable();
+        self.valvePosition = ko.observable();
+        self.supplyVoltage = ko.observable();
+        self.supplyCurrent = ko.observable();
+        self.supplyPower = ko.observable();
+
+        self.powerStr = ko.observable();
 
         // every time the controller loop is run, this function is called.
         // it will receive all necessary data for displaying case control data
@@ -25,8 +34,16 @@ $(function() {
           if (plugin != "CaseController") {
             return;
           }
+          self.caseTemp(data.caseTemp);
+          self.desiredCaseTemp(data.desiredCaseTemp);
+          self.valvePosition(data.valvePosition);
+          self.supplyVoltage(data.supplyVoltage);
+          self.supplyCurrent(data.supplyCurrent);
+          self.supplyPower(data.supplyPower);
 
-          self.caseTemp(_.sprintf("Case: %.1f&deg;C", data.caseTemp));
+          self.caseTempStr(_.sprintf("Case: %.1f&deg;C | %.1f&deg;C", self.caseTemp(), self.desiredCaseTemp()));
+
+          self.powerStr(_.sprintf("%.3fV %.3fA %.3fW", self.supplyVoltage(), self.supplyCurrent(), self.supplyPower()))
         }
 
         // called when the case light on button is pressed
@@ -123,6 +140,41 @@ $(function() {
             error: function (data, status) {
               var options = {
                 title: "Vent Fan Off Failed.",
+                text: data.responseText,
+                hide: true,
+                buttons: {
+                  sticker: false,
+                  closer: true
+                },
+                type: "error"
+              };
+
+              new PNotify(options);
+            }
+          });
+        }
+
+        //called when the vent fan off button is pressed
+        self.setDesiredCaseTempBtnCb = function() {
+          //sanitize the input kagigger
+          newValue = parseFloat(self.desiredCaseTempEdit());
+          if(isNaN (newValue))
+          {
+            return;
+          }
+
+          $.ajax({
+            url: API_BASEURL + "plugin/CaseController",
+            type: "POST",
+            dataType: "json",
+            data: JSON.stringify({
+              command: "setDesiredCaseTemp",
+              temperature: newValue
+            }),
+            contentType: "application/json; charset=UTF-8",
+            error: function (data, status) {
+              var options = {
+                title: "Set Desired Case Temp Failed.",
                 text: data.responseText,
                 hide: true,
                 buttons: {

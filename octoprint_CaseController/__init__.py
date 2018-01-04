@@ -1,14 +1,6 @@
 # coding=utf-8
 from __future__ import absolute_import
 
-### (Don't forget to remove me)
-# This is a basic skeleton for your plugin's __init__.py. You probably want to adjust the class name of your plugin
-# as well as the plugin mixins it's subclassing from. This is really just a basic skeleton to get you started,
-# defining your plugin as a template plugin, settings and asset plugin. Feel free to add or remove mixins
-# as necessary.
-#
-# Take a look at the documentation on what other plugin mixins are available.
-
 import octoprint.plugin
 from octoprint.util import RepeatedTimer
 from .case_control import CaseController
@@ -29,18 +21,29 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
     ##~~ The Main Control Loop
     def mainLoop(self):
         self.caseTemp = self.c.readTemp_C()
+        self.supplyVoltage = self.c.readVoltage()
+        self.supplyCurrent = self.c.readCurrent()
+        self.supplyPower = self.supplyVoltage * self.supplyCurrent
         i_error = self.caseTemp - self._settings.get(["desiredTemp"])
         if(i_error > 0):
             self.valvePosition = i_error * self.valveGain
             self.valvePosition = self.sanitize_flowvals(self.valvePosition)
+        else:
+            self.valvePosition = 0.0
 
         self.c.setValve(self.valvePosition)
+
+        # self._logger.info('Voltage: {:.3f}V Current: {:.3f}A Power: {:.3f}W'.format(self.supplyVoltage, self.supplyCurrent, self.supplyPower))
 
         # self._logger.info(self.caseTemp)
         self._plugin_manager.send_plugin_message(self._identifier,
                                                  dict(
                                                       caseTemp=self.caseTemp,
-                                                      valvePosition=self.valvePosition))
+                                                      desiredCaseTemp=self._settings.get(["desiredTemp"]),
+                                                      valvePosition=self.valvePosition,
+                                                      supplyVoltage=self.supplyVoltage,
+                                                      supplyCurrent=self.supplyCurrent,
+                                                      supplyPower=self.supplyPower))
 
     def sanitize_flowvals(self, invar):
        if(invar < 0):
@@ -55,6 +58,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         if(event == "PrintStarted"):
             self.c.setFan(1)
         elif(event == "Shutdown"):
+            self.c.setStatusLED(0)
             self.c.setFan(0)
 
     ##~~ StartupPlugin mixin
@@ -79,7 +83,8 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
             caseLightOn=[],
             caseLightOff=[],
             ventFanOn=[],
-            ventFanOff=[]
+            ventFanOff=[],
+            setDesiredCaseTemp=["temperature"]
         )
 
     def on_api_command(self, command, data):
@@ -92,6 +97,9 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
             self.c.setFan(1)
         elif command == "ventFanOff":
             self.c.setFan(0)
+        elif command == "setDesiredCaseTemp":
+            self._settings.set(["desiredTemp"], float(data["temperature"]))
+            self._settings.save()
 
     ##~~ AssetPlugin mixin
 
@@ -126,10 +134,6 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
             )
         )
 
-
-# If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
-# ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
-# can be overwritten via __plugin_xyz__ control properties. See the documentation for that.
 __plugin_name__ = "CaseController"
 
 def __plugin_load__():

@@ -1,12 +1,26 @@
-<div class="control-group">
-  <button class="btn btn-primary" data-bind="click: caseLightOnBtnCb">Light On</button>
-  <button class="btn btn-primary" data-bind="click: caseLightOffBtnCb">Light Off</button>
+<h1>Status</h1>
+  <div class="control-group">
+    <p class="nav navbar-text" data-bind="html: caseTempStr"></p>
+  </div>
+  <div class="control-group">
+    <p class="nav navbar-text" data-bind="html: powerStr"></p>
+  </div>
+<h1>Controls</h1>
+<h>Case Light</h>
+<div class="control-group btn-group">
+  <button class="btn" data-bind="click: caseLightOnBtnCb"> On</button>
+  <button class="btn" data-bind="click: caseLightOffBtnCb">Off</button>
 </div>
 
-<div class="control-group">
-  <button class="btn btn-primary" data-bind="click: ventFanOnBtnCb">Vent Fan On</button>
-  <button class="btn btn-primary" data-bind="click: ventFanOffBtnCb">Vent Fan Off</button>
+<h>Vent Fan</h>
+<div class="control-group btn-group">
+  <button class="btn" data-bind="click: ventFanOnBtnCb">On</button>
+  <button class="btn" data-bind="click: ventFanOffBtnCb">Off</button>
 </div>
 
-<div class="control-group">
+<h>Desired Case Temperature</h>
+<div class="input-prepend input-append">
+  <input type="number" class="input-mini input-nospin" style="width: 30px" data-bind="value: desiredCaseTempEdit" />
+  <span class="add-on">&deg;C</span>
+  <button class="btn btn-input-inc" data-bind="click: setDesiredCaseTempBtnCb">Apply</button>
 </div>
