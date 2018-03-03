@@ -1,5 +1,8 @@
 <h1>Status</h1>
   <div class="control-group">
+    <p class="nav navbar-text" data-bind="html: valveFanStr"></p>
+  </div>
+  <div class="control-group">
     <p class="nav navbar-text" data-bind="html: caseTempStr"></p>
   </div>
   <div class="control-group">
@@ -12,10 +15,10 @@
   <button class="btn" data-bind="click: caseLightOffBtnCb">Off</button>
 </div>
 
-<h>Vent Fan</h>
+<h>Machine</h>
 <div class="control-group btn-group">
-  <button class="btn" data-bind="click: ventFanOnBtnCb">On</button>
-  <button class="btn" data-bind="click: ventFanOffBtnCb">Off</button>
+  <button class="btn" data-bind="click: machineOnBtnCb">On</button>
+  <button class="btn" data-bind="click: machineOffBtnCb">Off</button>
 </div>
 
 <h>Desired Case Temperature</h>

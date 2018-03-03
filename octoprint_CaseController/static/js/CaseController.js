@@ -21,11 +21,14 @@ $(function() {
         self.desiredCaseTemp = ko.observable();
         self.desiredCaseTempEdit = ko.observable();
         self.valvePosition = ko.observable();
+        self.fanSpeed = ko.observable();
         self.supplyVoltage = ko.observable();
         self.supplyCurrent = ko.observable();
         self.supplyPower = ko.observable();
 
         self.powerStr = ko.observable();
+
+        self.valveFanStr = ko.observable();
 
         // every time the controller loop is run, this function is called.
         // it will receive all necessary data for displaying case control data
@@ -37,9 +40,12 @@ $(function() {
           self.caseTemp(data.caseTemp);
           self.desiredCaseTemp(data.desiredCaseTemp);
           self.valvePosition(data.valvePosition);
+          self.fanSpeed(data.fanSpeed);
           self.supplyVoltage(data.supplyVoltage);
           self.supplyCurrent(data.supplyCurrent);
           self.supplyPower(data.supplyPower);
+
+          self.valveFanStr(_.sprintf("Fan: %.1f%% | Valve: %.1f%%", self.fanSpeed(), self.valvePosition()));
 
           self.caseTempStr(_.sprintf("Case: %.1f&deg;C | %.1f&deg;C", self.caseTemp(), self.desiredCaseTemp()));
 
@@ -140,6 +146,60 @@ $(function() {
             error: function (data, status) {
               var options = {
                 title: "Vent Fan Off Failed.",
+                text: data.responseText,
+                hide: true,
+                buttons: {
+                  sticker: false,
+                  closer: true
+                },
+                type: "error"
+              };
+
+              new PNotify(options);
+            }
+          });
+        }
+
+        // called when the machine on button is pressed
+        self.machineOnBtnCb = function() {
+          $.ajax({
+            url: API_BASEURL + "plugin/CaseController",
+            type: "POST",
+            dataType: "json",
+            data: JSON.stringify({
+              command: "machineOn"
+            }),
+            contentType: "application/json; charset=UTF-8",
+            error: function (data, status) {
+              var options = {
+                title: "Machine On Failed.",
+                text: data.responseText,
+                hide: true,
+                buttons: {
+                  sticker: false,
+                  closer: true
+                },
+                type: "error"
+              };
+
+              new PNotify(options);
+            }
+          });
+        }
+
+        //called when the machine off button is pressed
+        self.machineOffBtnCb = function() {
+          $.ajax({
+            url: API_BASEURL + "plugin/CaseController",
+            type: "POST",
+            dataType: "json",
+            data: JSON.stringify({
+              command: "machineOff"
+            }),
+            contentType: "application/json; charset=UTF-8",
+            error: function (data, status) {
+              var options = {
+                title: "Machine Off Failed.",
                 text: data.responseText,
                 hide: true,
                 buttons: {

@@ -4,6 +4,8 @@ from time import sleep
 FULL_OPEN = 37600
 FULL_CLOSE = 36150
 FAN_PIN = 18
+FAN_MAX = 1024
+FAN_MIN = 0
 SERVO_PIN = 19
 CASE_LIGHT_PIN = 24
 STATUS_LED_PIN = 23
@@ -87,10 +89,16 @@ class CaseController():
         self.valve_position = 0
 
         ##~~ initialize the fan
+        self.fan_max = FAN_MAX
+        self.fan_min = FAN_MIN
         self.pi.set_mode(FAN_PIN, pigpio.OUTPUT)
-        self.pi.write(FAN_PIN, 0)
+        self.pi.set_PWM_frequency(FAN_PIN, 60)
+        self.pi.set_PWM_range(FAN_PIN, 1024)
+        self.pi.set_PWM_dutycycle(FAN_PIN, self.fan_min)
+        # self.pi.set_mode(FAN_PIN, pigpio.OUTPUT)
+        # self.pi.write(FAN_PIN, 0)
 
-        self.fan_state = 0
+        self.fan_speed = 0
 
         ##~~ initialize status LED
         self.pi.set_mode(STATUS_LED_PIN, pigpio.OUTPUT)
@@ -218,17 +226,19 @@ class CaseController():
         self.pi.write(MPWR_RELAY_PIN, state)
         self.mpwr_state = state
 
-    def setFan(self, state):
-        self.pi.write(FAN_PIN, state)
-        self.fan_state = state
+    def setFan(self, value):
+        fan_range = self.fan_max - self.fan_min
+        percentage = float(value)/100.0
+        value = float(fan_range)*percentage + self.fan_min
+        self.pi.set_PWM_dutycycle(FAN_PIN, int(value))
+        self.fan_speed = value
 
     def setValve(self, flowRate):
         valve_range = self.full_close - self.full_open
         percentage = (100.0 - float(flowRate))/100.0
         value = float(valve_range)*percentage + self.full_open
         self.pi.set_PWM_dutycycle(SERVO_PIN, int(value))
+        self.valve_position = flowRate
 
 if(__name__ == '__main__'):
     c = CaseController()
-    while(1):
-        sleep(0.1)

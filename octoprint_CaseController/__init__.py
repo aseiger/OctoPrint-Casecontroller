@@ -17,6 +17,13 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         self.valvePosition = 0
         self.caseTemp = self.c.readTemp_C()
         self.valveGain = 50
+        self.fanGain = 25
+        self.fanOff_value = 0
+        self.fanMin_value = 10
+        self.fanMax_value = 100
+        self.fanSpeed = 0
+
+        self.isPrinting = 0
 
     ##~~ The Main Control Loop
     def mainLoop(self):
@@ -28,19 +35,35 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         if(i_error > 0):
             self.valvePosition = i_error * self.valveGain
             self.valvePosition = self.sanitize_flowvals(self.valvePosition)
+
+            # fan should only increase in speed after valve is all open
+            self.fanSpeed = (i_error - (100/self.valveGain)) * self.fanGain
+            if(self.fanSpeed <= 0):
+                self.fanSpeed = 0.0;
+
+            # based on if printing or not, adjust the min fan speed to ensure negative pressure
+            if(self.isPrinting):
+                self.fanSpeed = self.sanitize_flowvals(self.fanSpeed + self.fanMin_value)
+            else:
+                self.fanSpeed = self.sanitize_flowvals(self.fanSpeed)
         else:
             self.valvePosition = 0.0
 
+            # based on if printing or not, adjust the min fan speed to ensure negative pressure
+            if(self.isPrinting):
+                self.fanSpeed = self.fanMin_value
+            else:
+                self.fanSpeed = 0
+
         self.c.setValve(self.valvePosition)
+        self.c.setFan(self.fanSpeed)
 
-        # self._logger.info('Voltage: {:.3f}V Current: {:.3f}A Power: {:.3f}W'.format(self.supplyVoltage, self.supplyCurrent, self.supplyPower))
-
-        # self._logger.info(self.caseTemp)
         self._plugin_manager.send_plugin_message(self._identifier,
                                                  dict(
                                                       caseTemp=self.caseTemp,
                                                       desiredCaseTemp=self._settings.get(["desiredTemp"]),
                                                       valvePosition=self.valvePosition,
+                                                      fanSpeed=self.fanSpeed,
                                                       supplyVoltage=self.supplyVoltage,
                                                       supplyCurrent=self.supplyCurrent,
                                                       supplyPower=self.supplyPower))
@@ -56,7 +79,13 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
         if(event == "PrintStarted"):
-            self.c.setFan(1)
+            self.isPrinting = 1
+        elif(event == "PrintDone"):
+            self.isPrinting = 0
+        elif(event == "PrintFailed"):
+            self.isPrinting = 0
+        elif(event == "PrintCancelled"):
+            self.isPrinting = 0
         elif(event == "Shutdown"):
             self.c.setStatusLED(0)
             self.c.setFan(0)
@@ -65,8 +94,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
     def on_after_startup(self):
         self._logger.info("Starting Case Controller...")
         self.c.setStatusLED(1)
-        self.c.setFan(1)
-
+        self.c.setFan(self.fanMin_value)
         self.loopTimer = RepeatedTimer(0.25, self.mainLoop)
         self.loopTimer.start()
         return 0
@@ -82,8 +110,8 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         return dict(
             caseLightOn=[],
             caseLightOff=[],
-            ventFanOn=[],
-            ventFanOff=[],
+            machineOn=[],
+            machineOff=[],
             setDesiredCaseTemp=["temperature"]
         )
 
@@ -93,10 +121,12 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
             self.c.setCaseLight(1)
         elif command == "caseLightOff":
             self.c.setCaseLight(0)
-        elif command == "ventFanOn":
-            self.c.setFan(1)
-        elif command == "ventFanOff":
-            self.c.setFan(0)
+        elif command == "machineOn":
+            if(self.isPrinting == 0):
+                self.c.setMPWR(1)
+        elif command == "machineOff":
+            if(self.isPrinting == 0):
+                self.c.setMPWR(0)
         elif command == "setDesiredCaseTemp":
             self._settings.set(["desiredTemp"], float(data["temperature"]))
             self._settings.save()
