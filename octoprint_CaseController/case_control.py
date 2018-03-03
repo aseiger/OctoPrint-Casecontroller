@@ -7,6 +7,8 @@ FAN_PIN = 18
 SERVO_PIN = 19
 CASE_LIGHT_PIN = 24
 STATUS_LED_PIN = 23
+MPWR_RELAY_PIN = 25
+BUTTON_PIN = 21
 
 ADS1115_CONVERSIONDELAY = 130
 ADS1015_REG_POINTER_MASK = 0x03
@@ -90,17 +92,31 @@ class CaseController():
 
         self.fan_state = 0
 
-        ##~~ initialze the case light
-        self.pi.set_mode(CASE_LIGHT_PIN, pigpio.OUTPUT)
-        self.pi.write(CASE_LIGHT_PIN, 0)
-
-        self.case_light_state = 0
-
         ##~~ initialize status LED
         self.pi.set_mode(STATUS_LED_PIN, pigpio.OUTPUT)
         self.pi.write(STATUS_LED_PIN, 0)
 
         self.status_led_state = 0
+
+        ##~~ initialze the Light BUTTON
+        self.pi.set_mode(BUTTON_PIN, pigpio.INPUT)
+        # set a debounce filter
+        self.pi.set_noise_filter(BUTTON_PIN, 100000, 100000)
+        #set the callback
+        self.pi.callback(BUTTON_PIN, pigpio.FALLING_EDGE, self.button_cb)
+
+        ##~~ initialize the MPWR MPWR_RELAY
+        self.pi.set_mode(MPWR_RELAY_PIN, pigpio.OUTPUT)
+        self.pi.write(MPWR_RELAY_PIN, 1)
+        self.mpwr_state = 1
+
+        sleep(0.250)
+
+        ##~~ initialze the case light
+        self.pi.set_mode(CASE_LIGHT_PIN, pigpio.OUTPUT)
+        self.pi.write(CASE_LIGHT_PIN, 0)
+
+        self.case_light_state = 0
 
         ##~~ initialize the temperature tempSensor
         self.case_temperature = self.readTemp_C()
@@ -109,6 +125,13 @@ class CaseController():
         self.current_offset_v = 0.65
         self.voltage = self.readVoltage()
         self.current = self.readCurrent()
+
+    def button_cb(self, gpio, level, tick):
+        if((gpio == BUTTON_PIN) & (level == 0)):
+            if(self.case_light_state == 0):
+                self.setCaseLight(1)
+            else:
+                self.setCaseLight(0)
 
     def readTemp_C(self):
         temp_sensor_h = self.pi.i2c_open(1, 0x48)
@@ -191,6 +214,10 @@ class CaseController():
         self.pi.write(STATUS_LED_PIN, state)
         self.status_led_state = state
 
+    def setMPWR(self, state):
+        self.pi.write(MPWR_RELAY_PIN, state)
+        self.mpwr_state = state
+
     def setFan(self, state):
         self.pi.write(FAN_PIN, state)
         self.fan_state = state
@@ -203,6 +230,5 @@ class CaseController():
 
 if(__name__ == '__main__'):
     c = CaseController()
-    c.setCaseLight(1)
     while(1):
-        print('Voltage: {:.3f} Current: {:.3f} Temp: {:.3f}'.format(c.readVoltage(), c.readCurrent(), c.readTemp_C()))
+        sleep(0.1)
