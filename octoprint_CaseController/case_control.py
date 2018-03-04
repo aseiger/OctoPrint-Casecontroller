@@ -115,8 +115,8 @@ class CaseController():
 
         ##~~ initialize the MPWR MPWR_RELAY
         self.pi.set_mode(MPWR_RELAY_PIN, pigpio.OUTPUT)
-        self.pi.write(MPWR_RELAY_PIN, 1)
-        self.mpwr_state = 1
+        self.pi.write(MPWR_RELAY_PIN, 0)
+        self.mpwr_state = 0
 
         sleep(0.250)
 

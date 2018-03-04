@@ -11,19 +11,19 @@
 <h1>Controls</h1>
 <h>Case Light</h>
 <div class="control-group btn-group">
-  <button class="btn" data-bind="click: caseLightOnBtnCb"> On</button>
-  <button class="btn" data-bind="click: caseLightOffBtnCb">Off</button>
+  <button class="btn" data-bind="click: caseLightOnBtnCb, enable: caseLightState() < 1">On</button>
+  <button class="btn" data-bind="click: caseLightOffBtnCb, enable: caseLightState() > 0">Off</button>
 </div>
 
 <h>Machine</h>
 <div class="control-group btn-group">
-  <button class="btn" data-bind="click: machineOnBtnCb">On</button>
-  <button class="btn" data-bind="click: machineOffBtnCb">Off</button>
+  <button class="btn" data-bind="click: machineOnBtnCb, enable: machinePowerState() < 1">On</button>
+  <button class="btn" data-bind="click: machineOffBtnCb, enable: machinePowerState() > 0">Off</button>
 </div>
 
 <h>Desired Case Temperature</h>
 <div class="input-prepend input-append">
   <input type="number" class="input-mini input-nospin" style="width: 30px" data-bind="value: desiredCaseTempEdit" />
   <span class="add-on">&deg;C</span>
-  <button class="btn btn-input-inc" data-bind="click: setDesiredCaseTempBtnCb">Apply</button>
+  <button class="btn btn-primary" data-bind="click: setDesiredCaseTempBtnCb">Apply</button>
 </div>

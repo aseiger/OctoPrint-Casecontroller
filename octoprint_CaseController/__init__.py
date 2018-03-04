@@ -23,8 +23,6 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         self.fanMax_value = 100
         self.fanSpeed = 0
 
-        self.isPrinting = 0
-
     ##~~ The Main Control Loop
     def mainLoop(self):
         self.caseTemp = self.c.readTemp_C()
@@ -42,7 +40,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
                 self.fanSpeed = 0.0;
 
             # based on if printing or not, adjust the min fan speed to ensure negative pressure
-            if(self.isPrinting):
+            if(self._printer.is_printing()):
                 self.fanSpeed = self.sanitize_flowvals(self.fanSpeed + self.fanMin_value)
             else:
                 self.fanSpeed = self.sanitize_flowvals(self.fanSpeed)
@@ -50,7 +48,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
             self.valvePosition = 0.0
 
             # based on if printing or not, adjust the min fan speed to ensure negative pressure
-            if(self.isPrinting):
+            if(self._printer.is_printing()):
                 self.fanSpeed = self.fanMin_value
             else:
                 self.fanSpeed = 0
@@ -60,13 +58,16 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
 
         self._plugin_manager.send_plugin_message(self._identifier,
                                                  dict(
+                                                      msgType="LoopData",
                                                       caseTemp=self.caseTemp,
                                                       desiredCaseTemp=self._settings.get(["desiredTemp"]),
                                                       valvePosition=self.valvePosition,
                                                       fanSpeed=self.fanSpeed,
                                                       supplyVoltage=self.supplyVoltage,
                                                       supplyCurrent=self.supplyCurrent,
-                                                      supplyPower=self.supplyPower))
+                                                      supplyPower=self.supplyPower,
+                                                      caseLightState=self.c.case_light_state,
+                                                      machinePowerState=self.c.mpwr_state))
 
     def sanitize_flowvals(self, invar):
        if(invar < 0):
@@ -78,15 +79,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
-        if(event == "PrintStarted"):
-            self.isPrinting = 1
-        elif(event == "PrintDone"):
-            self.isPrinting = 0
-        elif(event == "PrintFailed"):
-            self.isPrinting = 0
-        elif(event == "PrintCancelled"):
-            self.isPrinting = 0
-        elif(event == "Shutdown"):
+        if(event == "Shutdown"):
             self.c.setStatusLED(0)
             self.c.setFan(0)
 
@@ -122,10 +115,10 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         elif command == "caseLightOff":
             self.c.setCaseLight(0)
         elif command == "machineOn":
-            if(self.isPrinting == 0):
+            if(self._printer.is_printing() == 0):
                 self.c.setMPWR(1)
         elif command == "machineOff":
-            if(self.isPrinting == 0):
+            if(self._printer.is_printing() == 0):
                 self.c.setMPWR(0)
         elif command == "setDesiredCaseTemp":
             self._settings.set(["desiredTemp"], float(data["temperature"]))

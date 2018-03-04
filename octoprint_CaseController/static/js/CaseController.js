@@ -25,6 +25,8 @@ $(function() {
         self.supplyVoltage = ko.observable();
         self.supplyCurrent = ko.observable();
         self.supplyPower = ko.observable();
+        self.caseLightState = ko.observable();
+        self.machinePowerState = ko.observable();
 
         self.powerStr = ko.observable();
 
@@ -37,6 +39,8 @@ $(function() {
           if (plugin != "CaseController") {
             return;
           }
+
+          //update all of the loop data info. There's lots of it...
           self.caseTemp(data.caseTemp);
           self.desiredCaseTemp(data.desiredCaseTemp);
           self.valvePosition(data.valvePosition);
@@ -44,6 +48,8 @@ $(function() {
           self.supplyVoltage(data.supplyVoltage);
           self.supplyCurrent(data.supplyCurrent);
           self.supplyPower(data.supplyPower);
+          self.caseLightState(data.caseLightState);
+          self.machinePowerState(data.machinePowerState);
 
           self.valveFanStr(_.sprintf("Fan: %.1f%% | Valve: %.1f%%", self.fanSpeed(), self.valvePosition()));
 
@@ -92,60 +98,6 @@ $(function() {
             error: function (data, status) {
               var options = {
                 title: "Case Light Off Failed.",
-                text: data.responseText,
-                hide: true,
-                buttons: {
-                  sticker: false,
-                  closer: true
-                },
-                type: "error"
-              };
-
-              new PNotify(options);
-            }
-          });
-        }
-
-        // called when the vent fan on button is pressed
-        self.ventFanOnBtnCb = function() {
-          $.ajax({
-            url: API_BASEURL + "plugin/CaseController",
-            type: "POST",
-            dataType: "json",
-            data: JSON.stringify({
-              command: "ventFanOn"
-            }),
-            contentType: "application/json; charset=UTF-8",
-            error: function (data, status) {
-              var options = {
-                title: "Vent Fan On Failed.",
-                text: data.responseText,
-                hide: true,
-                buttons: {
-                  sticker: false,
-                  closer: true
-                },
-                type: "error"
-              };
-
-              new PNotify(options);
-            }
-          });
-        }
-
-        //called when the vent fan off button is pressed
-        self.ventFanOffBtnCb = function() {
-          $.ajax({
-            url: API_BASEURL + "plugin/CaseController",
-            type: "POST",
-            dataType: "json",
-            data: JSON.stringify({
-              command: "ventFanOff"
-            }),
-            contentType: "application/json; charset=UTF-8",
-            error: function (data, status) {
-              var options = {
-                title: "Vent Fan Off Failed.",
                 text: data.responseText,
                 hide: true,
                 buttons: {
