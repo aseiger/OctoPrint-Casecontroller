@@ -56,6 +56,12 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         self.c.setValve(self.valvePosition)
         self.c.setFan(self.fanSpeed)
 
+        if(self.c.read_button()):
+            if(self.c.case_light_state == 0):
+                self.caseLightOn_Timeout()
+            else:
+                self.caseLightOff_Timeout()
+
         self._plugin_manager.send_plugin_message(self._identifier,
                                                  dict(
                                                       msgType="LoopData",
@@ -77,6 +83,15 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
        # invar = int(invar)
        return invar
 
+    def caseLightOn_Timeout(self):
+        self.c.setCaseLight(1)
+        self.caseLightTimeout = RepeatedTimer(self._settings.get(["caseLightTimeout"]), self.caseLightOff_Timeout)
+        self.caseLightTimeout.start()
+
+    def caseLightOff_Timeout(self):
+        self.c.setCaseLight(0)
+        self.caseLightTimeout.cancel()
+
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
         if(event == "Shutdown"):
@@ -96,7 +111,8 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
 
     def get_settings_defaults(self):
         return dict(
-            desiredTemp=40
+            desiredTemp=40,
+            caseLightTimeout=600
         )
 
     def get_api_commands(self):
@@ -111,9 +127,9 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
     def on_api_command(self, command, data):
         import flask
         if command == "caseLightOn":
-            self.c.setCaseLight(1)
+            self.caseLightOn_Timeout()
         elif command == "caseLightOff":
-            self.c.setCaseLight(0)
+            self.caseLightOff_Timeout()
         elif command == "machineOn":
             if(self._printer.is_printing() == 0):
                 self.c.setMPWR(1)

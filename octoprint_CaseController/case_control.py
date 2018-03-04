@@ -134,12 +134,23 @@ class CaseController():
         self.voltage = self.readVoltage()
         self.current = self.readCurrent()
 
+        ##~~ initialize the button
+        self.button_was_pressed = 0
+
     def button_cb(self, gpio, level, tick):
-        if((gpio == BUTTON_PIN) & (level == 0)):
-            if(self.case_light_state == 0):
-                self.setCaseLight(1)
-            else:
-                self.setCaseLight(0)
+        self.button_was_pressed = 1
+        # if((gpio == BUTTON_PIN) & (level == 0)):
+        #     if(self.case_light_state == 0):
+        #         self.setCaseLight(1)
+        #     else:
+        #         self.setCaseLight(0)
+
+    def read_button(self):
+        if(self.button_was_pressed == 1):
+            self.button_was_pressed = 0
+            return 1
+        else:
+            return 0
 
     def readTemp_C(self):
         temp_sensor_h = self.pi.i2c_open(1, 0x48)
