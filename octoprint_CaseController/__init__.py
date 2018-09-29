@@ -22,6 +22,10 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         self.fanMin_value = 10
         self.fanMax_value = 100
         self.fanSpeed = 0
+        self.caseLightTimeout = RepeatedTimer(1, self.caseLightOff_Timeout)
+        self.isLightTimeoutActive = 0
+        self.fastCaseLightTimeout = RepeatedTimer(1, self.caseLightOff_FastTimeout)
+        self.isfastLightTimeoutActive = 0
 
     ##~~ The Main Control Loop
     def mainLoop(self):
@@ -84,19 +88,50 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
        return invar
 
     def caseLightOn_Timeout(self):
-        self.c.setCaseLight(1)
-        self.caseLightTimeout = RepeatedTimer(self._settings.get(["caseLightTimeout"]), self.caseLightOff_Timeout)
-        self.caseLightTimeout.start()
+        #only allow manual light control if the fast light is inactive
+        if(self.isfastLightTimeoutActive == 0):
+            self.isLightTimeoutActive = 1
+            self.c.setCaseLight(1)
+            self.caseLightTimeout = RepeatedTimer(self._settings.get(["caseLightTimeout"]), self.caseLightOff_Timeout)
+            self.caseLightTimeout.start()
 
     def caseLightOff_Timeout(self):
-        self.c.setCaseLight(0)
+        #don't shut the light off on a fast light
+        if(self.isfastLightTimeoutActive == 0):
+            self.c.setCaseLight(0)
+
         self.caseLightTimeout.cancel()
+        self.isLightTimeoutActive = 0
+
+    def caseLightOff_FastTimeout(self):
+        #don't shut the light out on a manual light
+        if(self.isLightTimeoutActive == 0):
+            self.c.setCaseLight(0)
+
+        self.fastCaseLightTimeout.cancel()
+        self.isfastLightTimeoutActive = 0
+
+    def caseLightOn_FastTimeout(self):
+        #only allow fast light control if manual control is inactive
+        if(self.isLightTimeoutActive == 0):
+            self.isfastLightTimeoutActive = 1
+            self.c.setCaseLight(1)
+            self.fastCaseLightTimeout = RepeatedTimer(self._settings.get(["caseLightFastTimeout"]), self.caseLightOff_FastTimeout)
+            self.fastCaseLightTimeout.start()
 
     ##~~ EventHandlerPlugin mixin
     def on_event(self, event, payload):
         if(event == "Shutdown"):
             self.c.setStatusLED(0)
             self.c.setFan(0)
+        elif(event == "CaptureStart"):
+            self.caseLightOn_FastTimeout()
+        elif(event == "PrintDone"):
+            self.caseLightOn_FastTimeout()
+        elif(event == "CaptureDone"):
+            self.caseLightOff_FastTimeout()
+        elif(event == "CaptureFailed"):
+            self.caseLightOff_FastTimeout()
 
     ##~~ StartupPlugin mixin
     def on_after_startup(self):
@@ -112,7 +147,8 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
     def get_settings_defaults(self):
         return dict(
             desiredTemp=40,
-            caseLightTimeout=600
+            caseLightTimeout=600,
+            caseLightFastTimeout=5
         )
 
     def get_api_commands(self):
