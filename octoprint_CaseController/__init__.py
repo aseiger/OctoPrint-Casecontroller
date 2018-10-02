@@ -26,6 +26,7 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
         self.isLightTimeoutActive = 0
         self.fastCaseLightTimeout = RepeatedTimer(1, self.caseLightOff_FastTimeout)
         self.isfastLightTimeoutActive = 0
+        self.lastZHeight = -1.0;
 
     ##~~ The Main Control Loop
     def mainLoop(self):
@@ -126,12 +127,38 @@ class CasecontrollerPlugin(octoprint.plugin.StartupPlugin,
             self.c.setFan(0)
         elif(event == "CaptureStart"):
             self.caseLightOn_FastTimeout()
+            self._logger.info("CaptureStart")
         elif(event == "PrintDone"):
             self.caseLightOn_FastTimeout()
+            self._logger.info("PrintDone")
         elif(event == "CaptureDone"):
             self.caseLightOff_FastTimeout()
+            self._logger.info("CaptureDone")
         elif(event == "CaptureFailed"):
             self.caseLightOff_FastTimeout()
+            self._logger.info("CaptureFailed")
+        elif(event == 'Home'):
+            self.lastZHeight = -1.0;
+
+    def caseLightBeforeZ(self, comm_instance, phase, cmd, cmd_type, gcode, *args, **kwargs):
+        if(gcode and ((gcode =="G1") or (gcode == "G0"))):
+            zIndex = cmd.find('Z')
+            if(zIndex > 0):
+                outString = "";
+                while((cmd[zIndex] != ' ') and (cmd[zIndex] != '\n')):
+                    zIndex = zIndex + 1
+                    if(zIndex >= len(cmd)):
+                        break
+                    outString = outString + cmd[zIndex]
+
+                # if printer is printing, set the new Z
+                queuedZHeight = float(outString)
+                if(self._printer.is_printing and (queuedZHeight != self.lastZHeight)):
+                    self.lastZHeight = queuedZHeight
+                    self.caseLightOn_FastTimeout()
+
+                self._logger.info("Received {}".format(outString))
+        return
 
     ##~~ StartupPlugin mixin
     def on_after_startup(self):
@@ -219,5 +246,6 @@ def __plugin_load__():
 
     global __plugin_hooks__
     __plugin_hooks__ = {
-        "octoprint.plugin.softwareupdate.check_config": plugin.get_update_information
+        "octoprint.plugin.softwareupdate.check_config": plugin.get_update_information,
+        "octoprint.comm.protocol.gcode.queuing": plugin.caseLightBeforeZ
     }
